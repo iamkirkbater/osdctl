@@ -2,12 +2,17 @@ package cmd
 
 import (
 	"fmt"
+	"time"
 
 	routev1 "github.com/openshift/api/route/v1"
 	awsv1alpha1 "github.com/openshift/aws-account-operator/pkg/apis/aws/v1alpha1"
 	gcpv1alpha1 "github.com/openshift/gcp-project-operator/pkg/apis"
 	hivev1 "github.com/openshift/hive/pkg/apis/hive/v1"
 	"github.com/spf13/cobra"
+	"go.szostok.io/version"
+	"go.szostok.io/version/extension"
+	"go.szostok.io/version/term"
+	verupgrade "go.szostok.io/version/upgrade"
 
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -42,6 +47,9 @@ func NewCmdRoot(streams genericclioptions.IOStreams) *cobra.Command {
 		Short:             "OSD CLI",
 		Long:              `CLI tool to provide OSD related utilities`,
 		DisableAutoGenTag: true,
+		PersistentPreRun: func(cmd *cobra.Command, args []string) {
+			checkForUpdates(cmd)
+		},
 	}
 
 	globalflags.AddGlobalFlags(rootCmd, globalOpts)
@@ -74,7 +82,7 @@ func NewCmdRoot(streams genericclioptions.IOStreams) *cobra.Command {
 
 	// Add version subcommand. Using the in-build --version flag does not work with cobra
 	// because there is no way to hook a function to the --version flag in cobra.
-	rootCmd.AddCommand(versionCmd)
+	rootCmd.AddCommand(extension.NewVersionCobraCmd())
 
 	// Add upgradeCmd for upgrading the currently running executable in-place.
 	rootCmd.AddCommand(upgradeCmd)
@@ -89,4 +97,40 @@ func help(cmd *cobra.Command, _ []string) {
 	if err != nil {
 		fmt.Println("Error while printing help: ", err.Error())
 	}
+}
+
+func checkForUpdates(cmd *cobra.Command) {
+	gh := verupgrade.NewGitHubDetector(
+		"openshift", "osdctl",
+		verupgrade.WithMinElapseTimeForRecheck(6*24*time.Hour), // Check every 6 days
+	)
+
+	rel, err := gh.LookForGreaterRelease(verupgrade.LookForGreaterReleaseInput{
+		CurrentVersion: version.Get().Version,
+	})
+	if err != nil {
+		return
+	}
+
+	if !rel.Found {
+		// no new version available
+		return
+	}
+	if rel.ReleaseInfo.IsFromCache {
+		// The time for re-checking for a new release has not elapsed yet,
+		// so the cached version is returned.
+		return
+	}
+
+	// Print the upgrade notice on a standard error channel (stderr).
+	// As a result, output processing for a given command works properly even
+	// if the upgrade notice is displayed.
+	//
+	// Use 'term.IsSmart' so that the renderer can disable colored output for non-tty output streams.
+	out, err := gh.Render(rel.ReleaseInfo, term.IsSmart(cmd.OutOrStderr()))
+	if err != nil {
+		return
+	}
+
+	_, _ = fmt.Fprint(cmd.OutOrStderr(), out)
 }
