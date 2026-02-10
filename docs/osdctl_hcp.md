@@ -27,5 +27,6 @@
 
 * [osdctl](osdctl.md)	 - OSD CLI
 * [osdctl hcp force-upgrade](osdctl_hcp_force-upgrade.md)	 - Schedule forced control plane upgrade for HCP clusters (Requires ForceUpgrader permissions)
+* [osdctl hcp get-cp-autoscaling-status](osdctl_hcp_get-cp-autoscaling-status.md)	 - Get control plane autoscaling status for hosted clusters on a management cluster
 * [osdctl hcp must-gather](osdctl_hcp_must-gather.md)	 - Create a must-gather for HCP cluster
 
