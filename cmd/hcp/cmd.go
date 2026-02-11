@@ -4,6 +4,7 @@ import (
 	"github.com/openshift/osdctl/cmd/hcp/forceupgrade"
 	getcpautoscalingstatus "github.com/openshift/osdctl/cmd/hcp/get-cp-autoscaling-status"
 	"github.com/openshift/osdctl/cmd/hcp/mustgather"
+	"github.com/openshift/osdctl/cmd/hcp/status"
 	"github.com/spf13/cobra"
 )
 
@@ -16,6 +17,7 @@ func NewCmdHCP() *cobra.Command {
 	hcp.AddCommand(getcpautoscalingstatus.NewCmdGetCPAutoscalingStatus())
 	hcp.AddCommand(mustgather.NewCmdMustGather())
 	hcp.AddCommand(forceupgrade.NewCmdForceUpgrade())
+	hcp.AddCommand(status.NewCmdStatus())
 
 	return hcp
 }
