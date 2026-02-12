@@ -417,6 +417,8 @@ func (r *requestServingNodesOpts) sendCustomerServiceLog() error {
 func (r *requestServingNodesOpts) handleRemoveOverride(ctx context.Context, hostedCluster *hypershiftv1beta1.HostedCluster, clusterName, hcNamespace string) error {
 	overrideAnnotation := "hypershift.openshift.io/cluster-size-override"
 	currentOverride, hasOverride := hostedCluster.Annotations[overrideAnnotation]
+	recommendAnnotation := "hypershift.openshift.io/recommended-cluster-size"
+	currentRecommendatation, hasRecommendatation := hostedCluster.Annotations[recommendAnnotation]
 
 	if !hasOverride || currentOverride == "" {
 		printer.PrintlnGreen("\nNo cluster-size-override annotation found. Cluster is already using default sizing behavior.")
@@ -430,7 +432,16 @@ func (r *requestServingNodesOpts) handleRemoveOverride(ctx context.Context, host
 		printer.PrintlnGreen(fmt.Sprintf("Current hosted-cluster-size: %s", currentSize))
 	}
 
+	if hasRecommendatation && currentRecommendatation != "" {
+		printer.PrintlnGreen(fmt.Sprintf("Recommended cluster size: %s", currentRecommendatation))
+	}
+
 	fmt.Printf("\nThis will remove the cluster-size-override annotation from cluster %s\n", clusterName)
+	if hasRecommendatation && currentRecommendatation != "" {
+		fmt.Printf("The cluster will revert to the recommended size: %s\n", currentRecommendatation)
+	} else {
+		fmt.Println("The cluster will revert to automatic sizing based on the worker node pool size.")
+	}
 	if !utils.ConfirmPrompt() {
 		return errors.New("operation cancelled by user")
 	}
@@ -458,12 +469,17 @@ func (r *requestServingNodesOpts) handleRemoveOverride(ctx context.Context, host
 		if newSize != "" {
 			printer.PrintlnGreen(fmt.Sprintf("Current hosted-cluster-size: %s", newSize))
 		}
+
+		newRecommended, hasNewRecommended := updatedHC.Annotations[recommendAnnotation]
+		if hasNewRecommended && newRecommended != "" {
+			printer.PrintlnGreen(fmt.Sprintf("Recommended cluster size: %s", newRecommended))
+		}
 	}
 
 	fmt.Println("\nOverride removed successfully!")
 	fmt.Println("\nUse the following commands to monitor the cluster:")
 	fmt.Printf("\nVerify cluster size (annotation and label):\n")
-	fmt.Printf("  oc get hostedcluster -n %s -oyaml | grep -E '(cluster-size-override|hosted-cluster-size)'\n", hcNamespace)
+	fmt.Printf("  oc get hostedcluster -n %s -oyaml | grep -E '(cluster-size-override|hosted-cluster-size|recommended-cluster-size)'\n", hcNamespace)
 	fmt.Printf("\nMonitor nodes:\n")
 	fmt.Printf("  oc get nodes -l hypershift.openshift.io/cluster-namespace=%s\n", hcNamespace)
 
