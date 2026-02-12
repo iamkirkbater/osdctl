@@ -1887,6 +1887,7 @@ osdctl cluster resize request-serving-nodes [flags]
       --kubeconfig string                Path to the kubeconfig file to use for CLI requests.
   -o, --output string                    Valid formats are ['', 'json', 'yaml', 'env']
       --reason string                    The reason for this command, which requires elevation, to be run (usually an OHSS or PD ticket)
+      --remove-override                  Remove the cluster-size-override annotation to revert to default sizing behavior
       --request-timeout string           The length of time to wait before giving up on a single server request. Non-zero values should contain a corresponding time unit (e.g. 1s, 2m, 3h). A value of zero means don't timeout requests. (default "0")
   -s, --server string                    The address and port of the Kubernetes API server
       --size string                      The target request-serving node size (e.g. m54xl). If not specified, will auto-select the next size up

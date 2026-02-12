@@ -443,3 +443,81 @@ func TestApplyClusterSizeOverride(t *testing.T) {
 		})
 	}
 }
+
+func TestRemoveClusterSizeOverride(t *testing.T) {
+	tests := []struct {
+		name          string
+		hostedCluster *hypershiftv1beta1.HostedCluster
+		patchError    error
+		expectErr     bool
+		errorContains string
+	}{
+		{
+			name: "successful removal - existing override annotation",
+			hostedCluster: &hypershiftv1beta1.HostedCluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-hc",
+					Namespace: "test-namespace",
+					Annotations: map[string]string{
+						"hypershift.openshift.io/cluster-size-override": "m54xl",
+						"other": "annotation",
+					},
+				},
+			},
+			expectErr: false,
+		},
+		{
+			name: "successful removal - no annotations",
+			hostedCluster: &hypershiftv1beta1.HostedCluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-hc",
+					Namespace: "test-namespace",
+				},
+			},
+			expectErr: false,
+		},
+		{
+			name: "patch error",
+			hostedCluster: &hypershiftv1beta1.HostedCluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-hc",
+					Namespace: "test-namespace",
+					Annotations: map[string]string{
+						"hypershift.openshift.io/cluster-size-override": "m54xl",
+					},
+				},
+			},
+			patchError:    fmt.Errorf("api server error"),
+			expectErr:     true,
+			errorContains: "failed to patch hostedcluster annotation",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockClient := &MockClient{}
+			mockClient.On("Patch", mock.Anything, mock.AnythingOfType("*v1beta1.HostedCluster"), mock.Anything, mock.Anything).
+				Return(tt.patchError)
+
+			r := &requestServingNodesOpts{
+				mgmtClientAdmin: mockClient,
+			}
+
+			err := r.removeClusterSizeOverride(context.Background(), tt.hostedCluster)
+
+			if tt.expectErr {
+				assert.Error(t, err)
+				if tt.errorContains != "" {
+					assert.Contains(t, err.Error(), tt.errorContains)
+				}
+			} else {
+				assert.NoError(t, err)
+				// Verify the annotation was removed
+				_, exists := tt.hostedCluster.Annotations["hypershift.openshift.io/cluster-size-override"]
+				assert.False(t, exists, "cluster-size-override annotation should be removed")
+			}
+
+			mockClient.AssertExpectations(t)
+		})
+	}
+}
