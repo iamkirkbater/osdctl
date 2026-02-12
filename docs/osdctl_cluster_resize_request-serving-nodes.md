@@ -20,6 +20,9 @@ osdctl cluster resize request-serving-nodes [flags]
   # Resize a ROSA HCP cluster's request-serving nodes to a specific size
   osdctl cluster resize request-serving-nodes --cluster-id "${CLUSTER_ID}" --size m54xl --reason "${OHSS}"
 
+  # Remove the cluster-size-override annotation to revert to default sizing behavior
+  osdctl cluster resize request-serving-nodes --cluster-id "${CLUSTER_ID}" --remove-override --reason "${OHSS}"
+
 ```
 
 ### Options
@@ -28,6 +31,7 @@ osdctl cluster resize request-serving-nodes [flags]
   -C, --cluster-id string   The internal ID of the cluster to perform actions on
   -h, --help                help for request-serving-nodes
       --reason string       The reason for this command, which requires elevation, to be run (usually an OHSS or PD ticket)
+      --remove-override     Remove the cluster-size-override annotation to revert to default sizing behavior
       --size string         The target request-serving node size (e.g. m54xl). If not specified, will auto-select the next size up
 ```
 

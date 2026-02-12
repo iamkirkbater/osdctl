@@ -24,10 +24,11 @@ const (
 )
 
 type requestServingNodesOpts struct {
-	clusterID string
-	cluster   *cmv1.Cluster
-	size      string
-	reason    string
+	clusterID      string
+	cluster        *cmv1.Cluster
+	size           string
+	reason         string
+	removeOverride bool
 
 	// mgmtClient is a K8s client to management cluster
 	mgmtClient client.Client
@@ -58,6 +59,9 @@ func newCmdResizeRequestServingNodes() *cobra.Command {
 
   # Resize a ROSA HCP cluster's request-serving nodes to a specific size
   osdctl cluster resize request-serving-nodes --cluster-id "${CLUSTER_ID}" --size m54xl --reason "${OHSS}"
+
+  # Remove the cluster-size-override annotation to revert to default sizing behavior
+  osdctl cluster resize request-serving-nodes --cluster-id "${CLUSTER_ID}" --remove-override --reason "${OHSS}"
 `,
 		Args:              cobra.NoArgs,
 		DisableAutoGenTag: true,
@@ -69,8 +73,10 @@ func newCmdResizeRequestServingNodes() *cobra.Command {
 	cmd.Flags().StringVarP(&opts.clusterID, "cluster-id", "C", "", "The internal ID of the cluster to perform actions on")
 	cmd.Flags().StringVar(&opts.size, "size", "", "The target request-serving node size (e.g. m54xl). If not specified, will auto-select the next size up")
 	cmd.Flags().StringVar(&opts.reason, "reason", "", "The reason for this command, which requires elevation, to be run (usually an OHSS or PD ticket)")
+	cmd.Flags().BoolVar(&opts.removeOverride, "remove-override", false, "Remove the cluster-size-override annotation to revert to default sizing behavior")
 	_ = cmd.MarkFlagRequired("cluster-id")
 	_ = cmd.MarkFlagRequired("reason")
+	cmd.MarkFlagsMutuallyExclusive("size", "remove-override")
 
 	return cmd
 }
@@ -153,6 +159,11 @@ func (r *requestServingNodesOpts) run(ctx context.Context) error {
 
 	printer.PrintlnGreen(fmt.Sprintf("HostedCluster namespace: %s", hcNamespace))
 	printer.PrintlnGreen(fmt.Sprintf("HostedCluster name: %s", hcName))
+
+	// If remove-override flag is set, remove the annotation and exit
+	if r.removeOverride {
+		return r.handleRemoveOverride(ctx, hostedCluster, cluster.Name(), hcNamespace)
+	}
 
 	// Get current hosted-cluster-size from label
 	currentSize := hostedCluster.Labels["hypershift.openshift.io/hosted-cluster-size"]
@@ -401,4 +412,74 @@ func (r *requestServingNodesOpts) sendCustomerServiceLog() error {
 	}
 
 	return postCmd.Run()
+}
+
+func (r *requestServingNodesOpts) handleRemoveOverride(ctx context.Context, hostedCluster *hypershiftv1beta1.HostedCluster, clusterName, hcNamespace string) error {
+	overrideAnnotation := "hypershift.openshift.io/cluster-size-override"
+	currentOverride, hasOverride := hostedCluster.Annotations[overrideAnnotation]
+
+	if !hasOverride || currentOverride == "" {
+		printer.PrintlnGreen("\nNo cluster-size-override annotation found. Cluster is already using default sizing behavior.")
+		return nil
+	}
+
+	printer.PrintlnGreen(fmt.Sprintf("Current cluster-size-override: %s", currentOverride))
+
+	currentSize := hostedCluster.Labels["hypershift.openshift.io/hosted-cluster-size"]
+	if currentSize != "" {
+		printer.PrintlnGreen(fmt.Sprintf("Current hosted-cluster-size: %s", currentSize))
+	}
+
+	fmt.Printf("\nThis will remove the cluster-size-override annotation from cluster %s\n", clusterName)
+	if !utils.ConfirmPrompt() {
+		return errors.New("operation cancelled by user")
+	}
+
+	printer.PrintlnGreen("\nRemoving cluster-size-override annotation...")
+	if err := r.removeClusterSizeOverride(ctx, hostedCluster); err != nil {
+		return fmt.Errorf("failed to remove cluster-size-override annotation: %v", err)
+	}
+
+	printer.PrintlnGreen("Annotation removed successfully!")
+
+	time.Sleep(10 * time.Second)
+
+	updatedHC := &hypershiftv1beta1.HostedCluster{}
+	if err := r.mgmtClient.Get(ctx, client.ObjectKey{Namespace: hcNamespace, Name: hostedCluster.Name}, updatedHC); err != nil {
+		fmt.Printf("Warning: failed to verify annotation removal: %v\n", err)
+	} else {
+		if _, stillHasOverride := updatedHC.Annotations[overrideAnnotation]; stillHasOverride {
+			fmt.Printf("Warning: cluster-size-override annotation still present\n")
+		} else {
+			printer.PrintlnGreen("Verified cluster-size-override annotation has been removed")
+		}
+
+		newSize := updatedHC.Labels["hypershift.openshift.io/hosted-cluster-size"]
+		if newSize != "" {
+			printer.PrintlnGreen(fmt.Sprintf("Current hosted-cluster-size: %s", newSize))
+		}
+	}
+
+	fmt.Println("\nOverride removed successfully!")
+	fmt.Println("\nUse the following commands to monitor the cluster:")
+	fmt.Printf("\nVerify cluster size (annotation and label):\n")
+	fmt.Printf("  oc get hostedcluster -n %s -oyaml | grep -E '(cluster-size-override|hosted-cluster-size)'\n", hcNamespace)
+	fmt.Printf("\nMonitor nodes:\n")
+	fmt.Printf("  oc get nodes -l hypershift.openshift.io/cluster-namespace=%s\n", hcNamespace)
+
+	return nil
+}
+
+func (r *requestServingNodesOpts) removeClusterSizeOverride(ctx context.Context, hostedCluster *hypershiftv1beta1.HostedCluster) error {
+	patch := client.MergeFrom(hostedCluster.DeepCopy())
+
+	if hostedCluster.Annotations != nil {
+		delete(hostedCluster.Annotations, "hypershift.openshift.io/cluster-size-override")
+	}
+
+	if err := r.mgmtClientAdmin.Patch(ctx, hostedCluster, patch); err != nil {
+		return fmt.Errorf("failed to patch hostedcluster annotation: %v", err)
+	}
+
+	return nil
 }
