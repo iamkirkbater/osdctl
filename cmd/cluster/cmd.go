@@ -2,6 +2,7 @@ package cluster
 
 import (
 	"fmt"
+	"github.com/openshift/osdctl/cmd/cluster/cad"
 
 	"github.com/openshift/osdctl/cmd/cluster/access"
 	"github.com/openshift/osdctl/cmd/cluster/reports"
@@ -48,6 +49,7 @@ func NewCmdCluster(streams genericclioptions.IOStreams, client *k8s.LazyClient, 
 	clusterCmd.AddCommand(sre_operators.NewCmdSREOperators(streams, client))
 	clusterCmd.AddCommand(newCmdGetEnvVars())
 	clusterCmd.AddCommand(reports.NewCmdReports())
+	clusterCmd.AddCommand(cad.NewCmdCad())
 	return clusterCmd
 }
 
