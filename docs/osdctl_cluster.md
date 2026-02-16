@@ -27,6 +27,7 @@ Provides information for a specified cluster
 
 * [osdctl](osdctl.md)	 - OSD CLI
 * [osdctl cluster break-glass](osdctl_cluster_break-glass.md)	 - Emergency access to a cluster
+* [osdctl cluster cad](osdctl_cluster_cad.md)	 - Provides commands to run CAD tasks
 * [osdctl cluster check-banned-user](osdctl_cluster_check-banned-user.md)	 - Checks if the cluster owner is a banned user.
 * [osdctl cluster context](osdctl_cluster_context.md)	 - Shows the context of a specified cluster
 * [osdctl cluster cpd](osdctl_cluster_cpd.md)	 - Runs diagnostic for a Cluster Provisioning Delay (CPD)
