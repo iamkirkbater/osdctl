@@ -12,7 +12,7 @@ Extended checks to confirm pull-secret data is synced with current OCM data
 
 
 ```
-osdctl cluster validate-pull-secret-ext [CLUSTER_ID] [flags]
+osdctl cluster validate-pull-secret-ext --cluster-id $CLUSTER_ID [flags]
 ```
 
 ### Examples
@@ -20,16 +20,17 @@ osdctl cluster validate-pull-secret-ext [CLUSTER_ID] [flags]
 ```
 
 	# Compare OCM Access-Token, OCM Registry-Credentials, and OCM Account Email against cluster's pull secret
-	osdctl cluster validate-pull-secret-ext ${CLUSTER_ID} --reason "OSD-XYZ"
+	osdctl cluster validate-pull-secret-ext --cluster-id ${CLUSTER_ID} --reason "OSD-XYZ"
 
 	# Exclude Access-Token, and Registry-Credential checks...
-	osdctl cluster validate-pull-secret-ext ${CLUSTER_ID} --reason "OSD-XYZ" --skip-access-token --skip-registry-creds
+	osdctl cluster validate-pull-secret-ext --cluster-id ${CLUSTER_ID} --reason "OSD-XYZ" --skip-access-token --skip-registry-creds
 
 ```
 
 ### Options
 
 ```
+  -C, --cluster-id string     Provide internal ID of the cluster
   -h, --help                  help for validate-pull-secret-ext
   -l, --log-level string      debug, info, warn, error. (default=info) (default "info")
       --reason string         Mandatory reason for this command to be run (usually includes an OHSS or PD ticket)

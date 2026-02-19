@@ -77,7 +77,7 @@
     - `status --cluster-id <cluster-identifier>` - Shows the support status of a specified cluster
   - `transfer-owner` - Transfer cluster ownership to a new user (to be done by Region Lead)
   - `validate-pull-secret --cluster-id <cluster-identifier>` - Checks if the pull secret email matches the owner email
-  - `validate-pull-secret-ext [CLUSTER_ID]` - Extended checks to confirm pull-secret data is synced with current OCM data
+  - `validate-pull-secret-ext --cluster-id $CLUSTER_ID` - Extended checks to confirm pull-secret data is synced with current OCM data
   - `verify-dns --cluster-id <cluster-id>` - Verify DNS resolution for HCP cluster public endpoints
 - `cost` - Cost Management related utilities
   - `carbon-report` - Generate carbon emissions report csv to stdout for a given AWS Account and Usage Period
@@ -2334,7 +2334,7 @@ osdctl cluster validate-pull-secret --cluster-id <cluster-identifier> [flags]
 
 
 ```
-osdctl cluster validate-pull-secret-ext [CLUSTER_ID] [flags]
+osdctl cluster validate-pull-secret-ext --cluster-id $CLUSTER_ID [flags]
 ```
 
 #### Flags
@@ -2342,6 +2342,7 @@ osdctl cluster validate-pull-secret-ext [CLUSTER_ID] [flags]
 ```
       --as string                        Username to impersonate for the operation. User could be a regular user or a service account in a namespace.
       --cluster string                   The name of the kubeconfig cluster to use
+  -C, --cluster-id string                Provide internal ID of the cluster
       --context string                   The name of the kubeconfig context to use
   -h, --help                             help for validate-pull-secret-ext
       --insecure-skip-tls-verify         If true, the server's certificate will not be checked for validity. This will make your HTTPS connections insecure

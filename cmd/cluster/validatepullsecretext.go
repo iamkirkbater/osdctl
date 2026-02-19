@@ -55,16 +55,16 @@ type validatePullSecretExtOptions struct {
 
 const VPSExample string = `
 	# Compare OCM Access-Token, OCM Registry-Credentials, and OCM Account Email against cluster's pull secret
-	osdctl cluster validate-pull-secret-ext ${CLUSTER_ID} --reason "OSD-XYZ"
+	osdctl cluster validate-pull-secret-ext --cluster-id ${CLUSTER_ID} --reason "OSD-XYZ"
 
 	# Exclude Access-Token, and Registry-Credential checks...
-	osdctl cluster validate-pull-secret-ext ${CLUSTER_ID} --reason "OSD-XYZ" --skip-access-token --skip-registry-creds
+	osdctl cluster validate-pull-secret-ext --cluster-id ${CLUSTER_ID} --reason "OSD-XYZ" --skip-access-token --skip-registry-creds
 `
 
 func newCmdValidatePullSecretExt() *cobra.Command {
 	ops := newValidatePullSecretExtOptions()
 	validatePullSecretCmd := &cobra.Command{
-		Use:   "validate-pull-secret-ext [CLUSTER_ID]",
+		Use:   "validate-pull-secret-ext --cluster-id $CLUSTER_ID",
 		Short: "Extended checks to confirm pull-secret data is synced with current OCM data",
 		Long: `
 	Attempts to validate if a cluster's pull-secret auth values are in sync with the account's email, 
@@ -73,13 +73,13 @@ func newCmdValidatePullSecretExt() *cobra.Command {
 	Region Lead permissions are required to view and validate the OCM AccessToken. 
 `,
 		Example:           VPSExample,
-		Args:              cobra.ExactArgs(1),
 		DisableAutoGenTag: true,
-		PreRun:            func(cmd *cobra.Command, args []string) { cmdutil.CheckErr(ops.preRun(cmd, args)) },
+		PreRun:            func(cmd *cobra.Command, args []string) { cmdutil.CheckErr(ops.preRun(cmd)) },
 		Run: func(cmd *cobra.Command, args []string) {
 			cmdutil.CheckErr(ops.run())
 		},
 	}
+	validatePullSecretCmd.Flags().StringVarP(&ops.clusterID, "cluster-id", "C", "", "Provide internal ID of the cluster")
 	validatePullSecretCmd.Flags().StringVar(&ops.reason, "reason", "", "Mandatory reason for this command to be run (usually includes an OHSS or PD ticket)")
 	validatePullSecretCmd.Flags().StringVarP(&ops.verboseLevel, "log-level", "l", "info", "debug, info, warn, error. (default=info)")
 	validatePullSecretCmd.Flags().Bool("skip-registry-creds", false, "Exclude OCM Registry Credentials checks against cluster secret")
@@ -93,11 +93,7 @@ func newValidatePullSecretExtOptions() *validatePullSecretExtOptions {
 	return &validatePullSecretExtOptions{}
 }
 
-func (o *validatePullSecretExtOptions) preRun(cmd *cobra.Command, args []string) error {
-	if len(args) != 1 {
-		return cmdutil.UsageErrorf(cmd, "Required 1 positional arg for 'Cluster ID'")
-	}
-	o.clusterID = args[0]
+func (o *validatePullSecretExtOptions) preRun(cmd *cobra.Command) error {
 	o.useAccessToken = true
 	o.useRegCreds = true
 
