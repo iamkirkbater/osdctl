@@ -531,15 +531,13 @@ func TestGetOCMConfigFromEnv(t *testing.T) {
 	}
 }
 
-// TestCreateConnectionWithUrl tests the CreateConnectionWithUrl function which creates
-// an OCM SDK connection with a specified URL. It validates URL alias handling for
-// 'production', 'staging', and 'integration' environments.
-// Note: Successful connection creation requires valid OCM credentials and is tested
-// in integration tests or the hive-login test command.
-func TestCreateConnectionWithUrl(t *testing.T) {
+// TestValidateAndResolveOcmUrl tests the ValidateAndResolveOcmUrl function which validates
+// and resolves OCM URL aliases without making any network calls. This is a pure validation test.
+func TestValidateAndResolveOcmUrl(t *testing.T) {
 	tests := []struct {
 		name        string
 		ocmUrl      string
+		wantUrl     string
 		wantErr     bool
 		errContains string
 	}{
@@ -558,43 +556,85 @@ func TestCreateConnectionWithUrl(t *testing.T) {
 			errContains: "invalid OCM_URL found",
 		},
 		{
-			// Test that 'production' alias doesn't fail with "invalid alias" error
-			// Will fail with credentials error if not logged in, which is expected
+			// Test that 'production' alias is correctly resolved
 			name:    "production alias recognized",
 			ocmUrl:  "production",
-			wantErr: true, // Will fail without credentials, but not with "invalid alias" error
+			wantUrl: "https://api.openshift.com",
+			wantErr: false,
 		},
 		{
-			// Test that 'staging' alias doesn't fail with "invalid alias" error
-			// Will fail with credentials error if not logged in, which is expected
+			// Test that 'prod' alias is correctly resolved
+			name:    "prod alias recognized",
+			ocmUrl:  "prod",
+			wantUrl: "https://api.openshift.com",
+			wantErr: false,
+		},
+		{
+			// Test that 'staging' alias is correctly resolved
 			name:    "staging alias recognized",
 			ocmUrl:  "staging",
-			wantErr: true, // Will fail without credentials, but not with "invalid alias" error
+			wantUrl: "https://api.stage.openshift.com",
+			wantErr: false,
 		},
 		{
-			// Test that 'integration' alias doesn't fail with "invalid alias" error
-			// Will fail with credentials error if not logged in, which is expected
+			// Test that 'stage' alias is correctly resolved
+			name:    "stage alias recognized",
+			ocmUrl:  "stage",
+			wantUrl: "https://api.stage.openshift.com",
+			wantErr: false,
+		},
+		{
+			// Test that 'integration' alias is correctly resolved
 			name:    "integration alias recognized",
 			ocmUrl:  "integration",
-			wantErr: true, // Will fail without credentials, but not with "invalid alias" error
+			wantUrl: "https://api.integration.openshift.com",
+			wantErr: false,
+		},
+		{
+			// Test that 'int' alias is correctly resolved
+			name:    "int alias recognized",
+			ocmUrl:  "int",
+			wantUrl: "https://api.integration.openshift.com",
+			wantErr: false,
+		},
+		{
+			// Test that full production URL is accepted
+			name:    "full production URL",
+			ocmUrl:  "https://api.openshift.com",
+			wantUrl: "https://api.openshift.com",
+			wantErr: false,
+		},
+		{
+			// Test that full staging URL is accepted
+			name:    "full staging URL",
+			ocmUrl:  "https://api.stage.openshift.com",
+			wantUrl: "https://api.stage.openshift.com",
+			wantErr: false,
+		},
+		{
+			// Test that gov cloud aliases are recognized
+			name:    "production gov alias recognized",
+			ocmUrl:  "productiongov",
+			wantUrl: "https://api-admin.openshiftusgov.com",
+			wantErr: false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			conn, err := CreateConnectionWithUrl(tt.ocmUrl)
+			resolvedUrl, err := ValidateAndResolveOcmUrl(tt.ocmUrl)
 			if tt.wantErr {
 				if err == nil {
-					t.Errorf("CreateConnectionWithUrl() expected error but got none")
+					t.Errorf("ValidateAndResolveOcmUrl() expected error but got none")
 				} else if tt.errContains != "" && !contains(err.Error(), tt.errContains) {
-					t.Errorf("CreateConnectionWithUrl() error = %v, want error containing %v", err, tt.errContains)
+					t.Errorf("ValidateAndResolveOcmUrl() error = %v, want error containing %v", err, tt.errContains)
 				}
 			} else {
 				if err != nil {
-					t.Errorf("CreateConnectionWithUrl() unexpected error = %v", err)
+					t.Errorf("ValidateAndResolveOcmUrl() unexpected error = %v", err)
 				}
-				if conn != nil {
-					defer conn.Close()
+				if resolvedUrl != tt.wantUrl {
+					t.Errorf("ValidateAndResolveOcmUrl() = %v, want %v", resolvedUrl, tt.wantUrl)
 				}
 			}
 		})
