@@ -284,16 +284,27 @@ func CreateConnection() (*sdk.Connection, error) {
 	return connBuilder.Build()
 }
 
+// ValidateAndResolveOcmUrl validates an OCM URL or alias and resolves it to a full URL.
+// Returns the resolved URL and an error if the input is invalid.
+func ValidateAndResolveOcmUrl(ocmUrl string) (string, error) {
+	if len(ocmUrl) <= 0 {
+		return "", fmt.Errorf("empty OCM URL")
+	}
+	// Validate URL in the case where it may be an alias
+	resolvedUrl, ok := urlAliases[ocmUrl]
+	if !ok {
+		return "", fmt.Errorf("invalid OCM_URL found: %s\nValid URL aliases are: 'production', 'staging', 'integration'", ocmUrl)
+	}
+	return resolvedUrl, nil
+}
+
 // Creates a connection to OCM
 func CreateConnectionWithUrl(OcmUrl string) (*sdk.Connection, error) {
-	if len(OcmUrl) <= 0 {
-		return nil, fmt.Errorf("CreateConnectionWithUrl provided empty OCM URL")
+	ocmApiUrl, err := ValidateAndResolveOcmUrl(OcmUrl)
+	if err != nil {
+		return nil, err
 	}
-	// First we need to validate URL in the case where it may be an alias
-	ocmApiUrl, ok := urlAliases[OcmUrl]
-	if !ok {
-		return nil, fmt.Errorf("invalid OCM_URL found: %s\nValid URL aliases are: 'production', 'staging', 'integration'", OcmUrl)
-	}
+
 	config, err := ocmConfig.Load()
 	if err != nil {
 		return nil, fmt.Errorf("unable to load OCM config. %w", err)
